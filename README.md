@@ -6,7 +6,7 @@ This project is a work in progress — see [Roadmap](#roadmap) below for current
 
 ## Why this project exists
 
-Many .NET developer roles list Azure hands-on experience as a requirement. This project is a deliberate effort to build that experience on a real system rather than isolated tutorials — covering deployment, configuration, secrets management, monitoring, and CI/CD on Azure, on top of solid application architecture.
+This is a deliberate effort to build real, hands-on Azure experience on a non-trivial system rather than isolated tutorials — covering deployment, configuration, secrets management, monitoring, and CI/CD on Azure, on top of solid application architecture.
 
 ## Architecture
 
