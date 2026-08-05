@@ -9,6 +9,7 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
     public void Configure(EntityTypeBuilder<OrderItem> builder)
     {
         builder.HasKey(i => i.Id);
+        builder.Property(i => i.Id).ValueGeneratedNever();
         builder.Ignore(i => i.DomainEvents);
         builder.Ignore(i => i.LineTotal); // computed from UnitPrice * Quantity, not stored
 

@@ -21,8 +21,8 @@ OrderManagement.Domain         -> Entities, value objects, domain events (no ext
 
 - **Domain** — `Order`, `Product`, `Customer` as rich entities with encapsulated business rules (e.g. an order can't be confirmed if empty, stock can't go negative). `Order` is the aggregate root; all mutations go through it.
 - **Application** — one service per feature (`OrderService`, `ProductService`, `CustomerService`) with [FluentValidation](https://docs.fluentvalidation.net/) validating requests before any domain logic runs. Domain events (e.g. `OrderConfirmedEvent`) are raised by entities and picked up by the service right after the operation that triggered them.
-- **Infrastructure** — EF Core persistence and Azure service integrations (planned: Azure SQL Database, Blob Storage, Key Vault).
-- **Api** — thin controllers that translate HTTP requests into Application service calls.
+- **Infrastructure** — EF Core persistence (SQL Server / Azure SQL Database), with `IEntityTypeConfiguration<T>` classes per entity and repository implementations behind the interfaces defined in Application. Azure Blob Storage and Key Vault integrations are planned.
+- **Api** — thin controllers that translate HTTP requests into Application service calls, plus a global exception handler that maps `NotFoundException` → 404, `DomainException`/`ValidationException` → 400, anything else → 500.
 
 ## Tech stack
 
@@ -36,23 +36,27 @@ OrderManagement.Domain         -> Entities, value objects, domain events (no ext
 
 - [x] Domain layer — entities, value objects, domain events
 - [x] Application layer — services, validation, domain event handling
-- [ ] Infrastructure layer — EF Core DbContext, repositories, Azure Blob Storage
-- [ ] Api layer — controllers, Swagger, DI wiring
-- [ ] Local run + verification
+- [x] Infrastructure layer — EF Core DbContext, entity configurations, repositories
+- [x] Api layer — controllers, Swagger, DI wiring, global exception handling
+- [x] Local run + verification — full flow (customer → product → order → confirm) tested end-to-end against SQL Server LocalDB
 - [ ] Azure deployment — App Service, Azure SQL, Key Vault, Application Insights
 - [ ] CI/CD pipeline via GitHub Actions
 
 ## Running locally
 
-Once the Api layer is complete:
+Requires SQL Server LocalDB (installed with Visual Studio on Windows) or any SQL Server instance.
 
 ```bash
 dotnet restore
 dotnet build
+
+# apply the EF Core migration (creates the OrderManagementDb database)
+dotnet ef database update --project OrderManagement.Infrastructure --startup-project OrderManagement.Api
+
 dotnet run --project OrderManagement.Api
 ```
 
-Details on required configuration (connection strings, etc.) will be added here once the Infrastructure layer lands.
+The connection string lives in `OrderManagement.Api/appsettings.json` under `ConnectionStrings:DefaultConnection`, defaulting to `(localdb)\MSSQLLocalDB`. Swagger UI is available at `/swagger` in the Development environment.
 
 ## License
 

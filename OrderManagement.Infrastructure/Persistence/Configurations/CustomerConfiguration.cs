@@ -9,6 +9,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
     public void Configure(EntityTypeBuilder<Customer> builder)
     {
         builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).ValueGeneratedNever();
         builder.Ignore(c => c.DomainEvents);
 
         builder.Property(c => c.Name).IsRequired().HasMaxLength(200);

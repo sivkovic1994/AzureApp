@@ -9,6 +9,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
     public void Configure(EntityTypeBuilder<Product> builder)
     {
         builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).ValueGeneratedNever();
         builder.Ignore(p => p.DomainEvents);
 
         builder.Property(p => p.Name).IsRequired().HasMaxLength(200);
