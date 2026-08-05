@@ -1,6 +1,6 @@
 # Order Management System
 
-A .NET 8 order management API, built as a hands-on project to learn and demonstrate Azure cloud development. It covers Clean Architecture, CQRS with MediatR, and domain-driven design, with the goal of deploying a non-trivial, production-shaped system to Azure.
+A .NET 8 order management API, built as a hands-on project to learn and demonstrate Azure cloud development. It covers Clean Architecture and domain-driven design, with the goal of deploying a non-trivial, production-shaped system to Azure.
 
 This project is a work in progress — see [Roadmap](#roadmap) below for current status.
 
@@ -15,19 +15,18 @@ The solution follows Clean Architecture, with dependencies pointing inward:
 ```
 OrderManagement.Api            -> HTTP layer: controllers, DI wiring, Swagger
 OrderManagement.Infrastructure -> EF Core, repositories, Azure service integrations
-OrderManagement.Application    -> CQRS commands/queries (MediatR), DTOs, validation
+OrderManagement.Application    -> Application services, DTOs, validation
 OrderManagement.Domain         -> Entities, value objects, domain events (no external dependencies)
 ```
 
 - **Domain** — `Order`, `Product`, `Customer` as rich entities with encapsulated business rules (e.g. an order can't be confirmed if empty, stock can't go negative). `Order` is the aggregate root; all mutations go through it.
-- **Application** — CQRS with [MediatR](https://github.com/jbogard/MediatR): one command/query per use case, each with its own handler and [FluentValidation](https://docs.fluentvalidation.net/) validator wired in through a MediatR pipeline behavior. Domain events (e.g. `OrderConfirmedEvent`) are dispatched as MediatR notifications and handled independently of the command that raised them.
+- **Application** — one service per feature (`OrderService`, `ProductService`, `CustomerService`) with [FluentValidation](https://docs.fluentvalidation.net/) validating requests before any domain logic runs. Domain events (e.g. `OrderConfirmedEvent`) are raised by entities and picked up by the service right after the operation that triggered them.
 - **Infrastructure** — EF Core persistence and Azure service integrations (planned: Azure SQL Database, Blob Storage, Key Vault).
-- **Api** — thin controllers that only translate HTTP requests into MediatR commands/queries.
+- **Api** — thin controllers that translate HTTP requests into Application service calls.
 
 ## Tech stack
 
 - .NET 8 / ASP.NET Core Web API
-- MediatR (CQRS)
 - FluentValidation
 - Entity Framework Core
 - Azure App Service, Azure SQL Database, Key Vault, Application Insights, Blob Storage (deployment target)
@@ -36,7 +35,7 @@ OrderManagement.Domain         -> Entities, value objects, domain events (no ext
 ## Roadmap
 
 - [x] Domain layer — entities, value objects, domain events
-- [x] Application layer — CQRS commands/queries, validation, event handlers
+- [x] Application layer — services, validation, domain event handling
 - [ ] Infrastructure layer — EF Core DbContext, repositories, Azure Blob Storage
 - [ ] Api layer — controllers, Swagger, DI wiring
 - [ ] Local run + verification

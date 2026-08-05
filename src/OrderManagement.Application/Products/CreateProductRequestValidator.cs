@@ -1,10 +1,10 @@
 using FluentValidation;
 
-namespace OrderManagement.Application.Products.Commands.CreateProduct;
+namespace OrderManagement.Application.Products;
 
-public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+public class CreateProductRequestValidator : AbstractValidator<CreateProductRequest>
 {
-    public CreateProductCommandValidator()
+    public CreateProductRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Sku).NotEmpty().MaximumLength(50);

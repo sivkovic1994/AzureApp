@@ -1,8 +1,9 @@
 using System.Reflection;
 using FluentValidation;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using OrderManagement.Application.Common.Behaviors;
+using OrderManagement.Application.Customers;
+using OrderManagement.Application.Orders;
+using OrderManagement.Application.Products;
 
 namespace OrderManagement.Application;
 
@@ -10,11 +11,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        var assembly = Assembly.GetExecutingAssembly();
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
-        services.AddValidatorsFromAssembly(assembly);
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }
