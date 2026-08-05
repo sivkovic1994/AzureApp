@@ -49,7 +49,7 @@ Once the Api layer is complete:
 ```bash
 dotnet restore
 dotnet build
-dotnet run --project src/OrderManagement.Api
+dotnet run --project OrderManagement.Api
 ```
 
 Details on required configuration (connection strings, etc.) will be added here once the Infrastructure layer lands.
