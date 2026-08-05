@@ -8,91 +8,109 @@ using OrderManagement.Domain.Events;
 
 namespace OrderManagement.Application.Orders;
 
-public class OrderService(
-    IOrderRepository orderRepository,
-    IProductRepository productRepository,
-    ICustomerRepository customerRepository,
-    IUnitOfWork unitOfWork,
-    IValidator<CreateOrderRequest> createOrderValidator,
-    IValidator<AddOrderItemRequest> addItemValidator,
-    ILogger<OrderService> logger)
-    : IOrderService
+public class OrderService : IOrderService
 {
+    private readonly IOrderRepository _orderRepository;
+    private readonly IProductRepository _productRepository;
+    private readonly ICustomerRepository _customerRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IValidator<CreateOrderRequest> _createOrderValidator;
+    private readonly IValidator<AddOrderItemRequest> _addItemValidator;
+    private readonly ILogger<OrderService> _logger;
+
+    public OrderService(
+        IOrderRepository orderRepository,
+        IProductRepository productRepository,
+        ICustomerRepository customerRepository,
+        IUnitOfWork unitOfWork,
+        IValidator<CreateOrderRequest> createOrderValidator,
+        IValidator<AddOrderItemRequest> addItemValidator,
+        ILogger<OrderService> logger)
+    {
+        _orderRepository = orderRepository;
+        _productRepository = productRepository;
+        _customerRepository = customerRepository;
+        _unitOfWork = unitOfWork;
+        _createOrderValidator = createOrderValidator;
+        _addItemValidator = addItemValidator;
+        _logger = logger;
+    }
+
     public async Task<OrderDto> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default)
     {
-        await createOrderValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await _createOrderValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var customer = await customerRepository.GetByIdAsync(request.CustomerId, cancellationToken)
+        var customer = await _customerRepository.GetByIdAsync(request.CustomerId, cancellationToken)
             ?? throw new NotFoundException(nameof(Customer), request.CustomerId);
 
         var order = Order.Create(customer.Id, request.Currency);
 
-        orderRepository.Add(order);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        _orderRepository.Add(order);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return OrderDto.FromEntity(order);
+        return ToDto(order);
     }
 
     public async Task<OrderDto> AddItemAsync(Guid orderId, AddOrderItemRequest request, CancellationToken cancellationToken = default)
     {
-        await addItemValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await _addItemValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+        var order = await _orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), orderId);
 
-        var product = await productRepository.GetByIdAsync(request.ProductId, cancellationToken)
+        var product = await _productRepository.GetByIdAsync(request.ProductId, cancellationToken)
             ?? throw new NotFoundException(nameof(Product), request.ProductId);
 
         product.ReserveStock(request.Quantity);
         order.AddItem(product.Id, product.Name, product.Price, request.Quantity);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return OrderDto.FromEntity(order);
+        return ToDto(order);
     }
 
     public async Task<OrderDto> ConfirmAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+        var order = await _orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), orderId);
 
         order.Confirm();
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         HandleDomainEvents(order);
 
-        return OrderDto.FromEntity(order);
+        return ToDto(order);
     }
 
     public async Task<OrderDto> CancelAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+        var order = await _orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), orderId);
 
         foreach (var item in order.Items)
         {
-            var product = await productRepository.GetByIdAsync(item.ProductId, cancellationToken);
+            var product = await _productRepository.GetByIdAsync(item.ProductId, cancellationToken);
             product?.ReleaseStock(item.Quantity);
         }
 
         order.Cancel();
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return OrderDto.FromEntity(order);
+        return ToDto(order);
     }
 
     public async Task<OrderDto> GetByIdAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
-        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+        var order = await _orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), orderId);
 
-        return OrderDto.FromEntity(order);
+        return ToDto(order);
     }
 
     public async Task<List<OrderDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var orders = await orderRepository.GetAllAsync(cancellationToken);
-        return orders.Select(OrderDto.FromEntity).ToList();
+        var orders = await _orderRepository.GetAllAsync(cancellationToken);
+        return orders.Select(ToDto).ToList();
     }
 
     private void HandleDomainEvents(Order order)
@@ -101,7 +119,7 @@ public class OrderService(
         {
             if (domainEvent is OrderConfirmedEvent confirmed)
             {
-                logger.LogInformation(
+                _logger.LogInformation(
                     "Order {OrderId} confirmed for customer {CustomerId} at {OccurredOn}. Invoice generation would be triggered here.",
                     confirmed.OrderId,
                     confirmed.CustomerId,
@@ -111,4 +129,18 @@ public class OrderService(
 
         order.ClearDomainEvents();
     }
+
+    private static OrderDto ToDto(Order order) => new(
+        order.Id,
+        order.CustomerId,
+        order.Status.ToString(),
+        order.CreatedOn,
+        order.Currency,
+        order.TotalAmount.Amount,
+        order.Items.Select(i => new OrderItemDto(
+            i.ProductId,
+            i.ProductName,
+            i.UnitPrice.Amount,
+            i.Quantity,
+            i.LineTotal.Amount)).ToList());
 }

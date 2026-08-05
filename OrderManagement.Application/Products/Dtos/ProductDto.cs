@@ -1,5 +1,3 @@
-using OrderManagement.Domain.Entities;
-
 namespace OrderManagement.Application.Products.Dtos;
 
 public record ProductDto(
@@ -8,13 +6,4 @@ public record ProductDto(
     string Sku,
     decimal Price,
     string Currency,
-    int StockQuantity)
-{
-    public static ProductDto FromEntity(Product product) => new(
-        product.Id,
-        product.Name,
-        product.Sku,
-        product.Price.Amount,
-        product.Price.Currency,
-        product.StockQuantity);
-}
+    int StockQuantity);

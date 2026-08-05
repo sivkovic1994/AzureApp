@@ -1,4 +1,5 @@
 using FluentValidation;
+using OrderManagement.Application.Orders.Dtos;
 
 namespace OrderManagement.Application.Orders;
 
