@@ -23,4 +23,11 @@ public class CustomersController : ControllerBase
         var customer = await _customerService.CreateAsync(request, cancellationToken);
         return Ok(customer);
     }
+
+    [HttpGet]
+    public async Task<ActionResult<List<CustomerDto>>> GetAll(CancellationToken cancellationToken)
+    {
+        var customers = await _customerService.GetAllAsync(cancellationToken);
+        return Ok(customers);
+    }
 }

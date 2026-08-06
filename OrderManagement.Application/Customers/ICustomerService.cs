@@ -5,4 +5,5 @@ namespace OrderManagement.Application.Customers;
 public interface ICustomerService
 {
     Task<CustomerDto> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default);
+    Task<List<CustomerDto>> GetAllAsync(CancellationToken cancellationToken = default);
 }

@@ -32,4 +32,10 @@ public class CustomerService : ICustomerService
 
         return new CustomerDto(customer.Id, customer.Name, customer.Email);
     }
+
+    public async Task<List<CustomerDto>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        var customers = await _customerRepository.GetAllAsync(cancellationToken);
+        return customers.Select(c => new CustomerDto(c.Id, c.Name, c.Email)).ToList();
+    }
 }
