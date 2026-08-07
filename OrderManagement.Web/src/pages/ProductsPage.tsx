@@ -5,7 +5,7 @@ import { ErrorBanner } from "../components/ErrorBanner";
 import { formatMoney } from "../utils/format";
 import type { ProductDto } from "../types/api";
 
-const emptyForm = { name: "", sku: "", price: "", currency: "EUR", initialStock: "" };
+const emptyForm = { name: "", sku: "", price: "", currency: "RSD", initialStock: "" };
 
 export function ProductsPage() {
   const [products, setProducts] = useState<ProductDto[]>([]);
@@ -64,18 +64,27 @@ export function ProductsPage() {
 
       <div className="card">
         <h2>Add product</h2>
-        <form className="form-grid" onSubmit={handleSubmit} style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto", alignItems: "end", display: "grid" }}>
+        <form className="form-grid" onSubmit={handleSubmit} style={{ gridTemplateColumns: "2fr 1fr 1fr 0.8fr 1fr auto", alignItems: "end", display: "grid" }}>
           <div>
             <label htmlFor="name">Name</label>
             <input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
             <label htmlFor="sku">SKU</label>
-            <input id="sku" required value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
+            <input id="sku" required placeholder="e.g. SPK-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
           </div>
           <div>
             <label htmlFor="price">Price</label>
             <input id="price" type="number" min="0" step="0.01" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="currency">Currency</label>
+            <select id="currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+              <option value="RSD">RSD</option>
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+            </select>
           </div>
           <div>
             <label htmlFor="stock">Initial stock</label>
