@@ -40,7 +40,7 @@ export function OrdersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await ordersApi.create({ customerId, currency: "EUR" });
+      await ordersApi.create({ customerId, currency: "RSD" });
       setCustomerId("");
       await loadData();
     } catch (err) {
