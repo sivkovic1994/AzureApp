@@ -42,6 +42,10 @@ public class Order : Entity
     {
         EnsureIsPending();
 
+        if (unitPrice.Currency != Currency)
+            throw new DomainException(
+                $"Cannot add '{productName}' priced in {unitPrice.Currency} to an order in {Currency}.");
+
         var existing = _items.FirstOrDefault(i => i.ProductId == productId);
         if (existing is not null)
             throw new DomainException($"Product '{productName}' is already in the order. Remove it first to change the quantity.");
