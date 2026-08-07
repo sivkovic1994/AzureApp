@@ -1,37 +1,57 @@
 # Order Management System
 
-A .NET 8 order management API, built as a hands-on project to learn and demonstrate Azure cloud development. It covers Clean Architecture and domain-driven design, with the goal of deploying a non-trivial, production-shaped system to Azure.
+A .NET 8 order management system with a React frontend, built as a hands-on project to learn and demonstrate Azure cloud development. It covers Clean Architecture and domain-driven design on the backend, and is deployed end-to-end on Azure — not just running locally.
 
-This project is a work in progress — see [Roadmap](#roadmap) below for current status.
+**Live demo:** https://gray-mud-05ff4be0f.7.azurestaticapps.net/
 
 ## Why this project exists
 
-This is a deliberate effort to build real, hands-on Azure experience on a non-trivial system rather than isolated tutorials — covering deployment, configuration, secrets management, monitoring, and CI/CD on Azure, on top of solid application architecture.
+This is a deliberate effort to build real, hands-on Azure experience on a non-trivial system rather than isolated tutorials — covering containerized deployment, managed databases, secrets, CORS, and CI/CD on Azure, on top of solid application architecture.
 
 ## Architecture
 
-The solution follows Clean Architecture, with dependencies pointing inward:
+The backend follows Clean Architecture, with dependencies pointing inward:
 
 ```
-OrderManagement.Api            -> HTTP layer: controllers, DI wiring, Swagger
-OrderManagement.Infrastructure -> EF Core, repositories, Azure service integrations
+OrderManagement.Api            -> HTTP layer: controllers, DI wiring, Swagger, CORS
+OrderManagement.Infrastructure -> EF Core, repositories, Azure SQL persistence
 OrderManagement.Application    -> Application services, DTOs, validation
 OrderManagement.Domain         -> Entities, value objects, domain events (no external dependencies)
+OrderManagement.Web            -> React + TypeScript SPA (separate from the Clean Architecture chain — calls the API over HTTP)
 ```
 
-- **Domain** — `Order`, `Product`, `Customer` as rich entities with encapsulated business rules (e.g. an order can't be confirmed if empty, stock can't go negative). `Order` is the aggregate root; all mutations go through it.
+- **Domain** — `Order`, `Product`, `Customer` as rich entities with encapsulated business rules (e.g. an order can't be confirmed if empty, stock can't go negative, an order can't mix currencies). `Order` is the aggregate root; all mutations go through it.
 - **Application** — one service per feature (`OrderService`, `ProductService`, `CustomerService`) with [FluentValidation](https://docs.fluentvalidation.net/) validating requests before any domain logic runs. Domain events (e.g. `OrderConfirmedEvent`) are raised by entities and picked up by the service right after the operation that triggered them.
-- **Infrastructure** — EF Core persistence (SQL Server / Azure SQL Database), with `IEntityTypeConfiguration<T>` classes per entity and repository implementations behind the interfaces defined in Application. Azure Blob Storage and Key Vault integrations are planned.
-- **Api** — thin controllers that translate HTTP requests into Application service calls, plus a global exception handler that maps `NotFoundException` → 404, `DomainException`/`ValidationException` → 400, anything else → 500.
+- **Infrastructure** — EF Core persistence against Azure SQL Database, with `IEntityTypeConfiguration<T>` classes per entity (owned-type mapping for the `Money` value object, field-backed collection navigation to keep aggregate encapsulation intact) and repository implementations behind the interfaces defined in Application.
+- **Api** — thin controllers that translate HTTP requests into Application service calls, a global exception handler that maps `NotFoundException` → 404, `DomainException`/`ValidationException` → 400, anything else → 500, and a configurable CORS policy for the frontend origin.
+- **Web** — a React (Vite + TypeScript) single-page app: one API client module per feature, client-side routing, no state management library (plain `useState`/`useEffect` is enough at this scale).
+
+## Deployed on Azure
+
+| Piece | Azure service | Notes |
+|---|---|---|
+| API | **Azure Container Apps** (Free/Consumption) | Runs the API as a Docker container; scales to zero when idle |
+| Database | **Azure SQL Database** (serverless, free offer) | Auto-pauses when idle, so it costs nothing at rest |
+| Frontend | **Azure Static Web Apps** (Free tier) | Serves the built React app; `staticwebapp.config.json` handles SPA client-side routing fallback |
+| Container registry | **Docker Hub** (public repo) | Free tier — Azure Container Registry has no free tier, so this was used instead |
+| Secrets | **Container Apps secrets** | SQL connection string stored as a Container App secret, injected as an environment variable — not a full Key Vault, but the credential isn't in source control or in a plain env var |
+| CI/CD | **GitHub Actions** (two workflows) | One auto-generated by Container Apps continuous deployment (builds the Docker image, pushes to Docker Hub, redeploys on every push to `master`), one auto-generated by Static Web Apps (builds the React app and deploys it) |
+
+### Notable things that came up doing this for real
+
+- **EF Core + client-generated GUID keys**: entities created in code (not by the database) and attached to an already-tracked parent via a navigation collection get misidentified as `Modified` instead of `Added` by EF's default heuristic, producing `UPDATE` statements against rows that don't exist yet. Fixed with `.Property(x => x.Id).ValueGeneratedNever()` on each entity configuration.
+- **Container Apps ingress port mismatch**: the app listens on 8080 (set via `ASPNETCORE_URLS` in the `Dockerfile`), but a fresh Container App defaults its ingress target port to 80 — silent "Activation failed" until the ports are aligned.
+- **SPA routing on static hosting**: navigating directly to a client-side route (e.g. `/orders/{id}`) 404s on a static host unless the host is told to fall back to `index.html` for unknown paths — hence `staticwebapp.config.json`.
+- **Domain invariant gap found via the deployed app, not tests**: `Order.AddItem` didn't originally check that the item's currency matched the order's currency — `Money.Add` only threw later, when computing `TotalAmount`, by which point the mismatched item had already been persisted. Fixed by validating the currency match at the point of mutation, before anything is saved.
 
 ## Tech stack
 
 - .NET 8 / ASP.NET Core Web API
-- FluentValidation
-- Entity Framework Core
+- FluentValidation, Entity Framework Core
+- React 19 + TypeScript + Vite, `react-router-dom`
 - Docker
-- Azure Container Apps, Azure SQL Database, Key Vault, Application Insights, Container Registry (deployment target)
-- GitHub Actions (CI/CD, auto-generated by Container Apps continuous deployment)
+- Azure Container Apps, Azure SQL Database, Azure Static Web Apps
+- GitHub Actions (CI/CD)
 
 ## Roadmap
 
@@ -39,13 +59,15 @@ OrderManagement.Domain         -> Entities, value objects, domain events (no ext
 - [x] Application layer — services, validation, domain event handling
 - [x] Infrastructure layer — EF Core DbContext, entity configurations, repositories
 - [x] Api layer — controllers, Swagger, DI wiring, global exception handling
-- [x] Local run + verification — full flow (customer → product → order → confirm) tested end-to-end against SQL Server LocalDB
-- [ ] Azure deployment — Container Apps, Azure SQL, Key Vault, Application Insights
-- [ ] CI/CD pipeline via GitHub Actions
+- [x] React frontend — orders, products, customers
+- [x] Local run + verification — full flow (customer → product → order → confirm) tested end-to-end
+- [x] Azure deployment — Container Apps, Azure SQL, Static Web Apps, CI/CD via GitHub Actions
+- [ ] Application Insights (monitoring)
+- [ ] Replace Container Apps secrets with a real Key Vault + managed identity
 
 ## Running locally
 
-Requires SQL Server LocalDB (installed with Visual Studio on Windows) or any SQL Server instance.
+**Backend** — requires SQL Server LocalDB (installed with Visual Studio on Windows) or any SQL Server instance:
 
 ```bash
 dotnet restore
@@ -58,6 +80,15 @@ dotnet run --project OrderManagement.Api
 ```
 
 The connection string lives in `OrderManagement.Api/appsettings.json` under `ConnectionStrings:DefaultConnection`, defaulting to `(localdb)\MSSQLLocalDB`. Swagger UI is available at `/swagger` in the Development environment.
+
+**Frontend** — in `OrderManagement.Web/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Set `VITE_API_BASE_URL` in `.env.local` to point at your running API (defaults to `http://localhost:5080`).
 
 ## License
 
